@@ -21,10 +21,11 @@ object DoctypePlugin extends AutoPlugin {
     
     // default values for the tasks and settings
     lazy val baseSettings: Seq[Def.Setting[_]] = Seq(
+      
       moscatoGenerateDoctypes := {
         implicit val log = streams.value.log
-        val classLoader = ClasspathUtilities.toLoader(
-            (dependencyClasspath in Runtime).value map { _.data })
+        val classPath = (dependencyClasspath in Runtime).value
+        val classLoader = ClasspathUtilities.toLoader(classPath map { _.data })
         
         val dbConfig = DbConfig(
           moscatoDbUrl.value,
@@ -36,7 +37,13 @@ object DoctypePlugin extends AutoPlugin {
         val outDir = (sourceManaged in Compile).value / "moscato"
         val generator = new DoctypeGenerator(outDir, dbConfig, classLoader)
         generator.generate(moscatoDoctypeDefinitions.value)
-        generateClasses(outDir.getAbsolutePath)
+        
+        val r = (runner in Compile).value
+        val pkg = "org.moscatocms.model"
+        val props = Seq(slickDriver(moscatoDbDriver.value), moscatoDbDriver.value, moscatoDbUrl.value, outDir.getAbsolutePath, pkg)
+        toError(r.run("slick.codegen.SourceCodeGenerator", classPath.files, props, streams.value.log))
+        val fname = outDir + "/" + pkg.replace(".", "/") + "/Tables.scala"
+        Seq(file(fname))
       },
       moscatoDoctypeDefinitions := Nil
     )
@@ -53,18 +60,8 @@ object DoctypePlugin extends AutoPlugin {
   // a group of settings that are automatically added to projects.
   override val projectSettings = baseSettings
 
-  def generateClasses(outDir: String) = {
-    (moscatoDbDriver, moscatoDbUrl, sourceManaged, dependencyClasspath in Compile, runner in Compile, streams) map { (moscatoDbDriver, moscatoDbUrl, dir, cp, r, s) =>
-      val pkg = "org.moscatocms.model"
-      toError(r.run("slick.codegen.SourceCodeGenerator", cp.files, Seq(moscatoDbDriver, slickDriver(moscatoDbDriver), moscatoDbUrl, outDir, pkg), s.log))
-      val fname = outDir + "/" + pkg.replace(".", "/") + "/Tables.scala"
-      Seq(file(fname))
-    }
-  }
-  
-  
   def slickDriver(jdbcDriver: String) = jdbcDriver match {
     case "org.postgresql.Driver" => "slick.driver.PostgresDriver"
-    case _ => throw new RuntimeException(s"Driver $jdbcDriver not supported yet")
+    case _ => sys.error(s"Driver $jdbcDriver not supported yet")
   }
 }
