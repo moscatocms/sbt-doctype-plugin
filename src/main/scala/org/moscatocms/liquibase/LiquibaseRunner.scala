@@ -5,6 +5,8 @@ import liquibase.Liquibase
 import liquibase.integration.commandline.CommandLineUtils
 import liquibase.resource.FileSystemResourceAccessor
 import sbt.classpath.ClasspathUtilities
+import liquibase.resource.CompositeResourceAccessor
+import liquibase.resource.ClassLoaderResourceAccessor
 
 class LiquibaseRunner(val conf: DbConfig, val classLoader: ClassLoader) {
   
@@ -25,7 +27,10 @@ class LiquibaseRunner(val conf: DbConfig, val classLoader: ClassLoader) {
   def liquibaseInstance(changelogFile: File) = {
     new Liquibase(
       changelogFile.getAbsolutePath,
-      new FileSystemResourceAccessor,
+      new CompositeResourceAccessor(
+        new FileSystemResourceAccessor,
+        new ClassLoaderResourceAccessor(classLoader)
+      ),
       database()
     )
   }

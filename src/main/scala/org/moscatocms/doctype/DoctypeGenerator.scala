@@ -22,26 +22,36 @@ class DoctypeGenerator(
   
   def generateTables(doctypes: Seq[Doctype]): File = {
     val liquibaseFile = outputDir / "changelog.xml"
-    XML.save(
-      filename = liquibaseFile.getAbsolutePath,
-      node = getChangelog(doctypes),
-      xmlDecl = true)
+    doctypes foreach { doctype =>
+      writeChangelog(outputDir / (doctype.table + ".xml"), getChangelog(doctype))
+    }
+    writeChangelog(liquibaseFile, getChangelog(doctypes))
     liquibaseFile
   }
   
-  def getChangelog(doctypes: Seq[Doctype]): Node = {
-    <databaseChangeLog
+  def writeChangelog(file: File, changeSets: Seq[Node]) {
+    XML.save(
+      filename = file.getAbsolutePath,
+      node = <databaseChangeLog
         xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xmlns:ext="http://www.liquibase.org/xml/ns/dbchangelog-ext"
         xsi:schemaLocation="
             http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.1.xsd
             http://www.liquibase.org/xml/ns/dbchangelog-ext http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-ext.xsd">
-      { doctypes map { getChangelog _ } }
-    </databaseChangeLog>
+        {changeSets}
+      </databaseChangeLog>,
+      xmlDecl = true)
   }
   
-  def getChangelog(doctype: Doctype) = {
+  def getChangelog(doctypes: Seq[Doctype]): Seq[Node] = {
+    <include file="org/moscatocms/migrations/moscato-changelog.xml"/> ++
+    { doctypes map { doctype =>
+      <include file={doctype.table + ".xml"} relativeToChangelogFile="true"/>
+    }}
+  }
+  
+  def getChangelog(doctype: Doctype): Seq[Node] = {
     val sequence = s"seq__${doctype.table}__id"
     <changeSet id={s"doctype__${doctype.table}"} author="moscato">
       <createSequence sequenceName={sequence} startValue="1" incrementBy="1"/>
