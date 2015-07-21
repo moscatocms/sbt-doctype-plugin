@@ -2,22 +2,19 @@ package org.moscatocms.doctype
 
 import sbt._
 import scala.xml.{Node, XML}
-import org.moscatocms.doctype.DoctypeParser._
 import org.moscatocms.liquibase._
 
-class DoctypeGenerator(
-    outputDir: File,
-    dbConf: DbConfig,
-    classLoader: ClassLoader
+class ChangelogGenerator(
+  outputDir: File,
+  dbConf: DbConfig,
+  classLoader: ClassLoader
 ) {
   
-  def generate(definitions: Seq[File])(implicit log: Logger): Seq[File] = {
+  def generate(doctypes: Seq[Doctype])(implicit log: Logger) {
     log.info(s"Generating doctypes.")
     outputDir.mkdirs()
-    val doctypes = definitions map { parse _ }
     val changelogFile = generateTables(doctypes)
     new LiquibaseRunner(dbConf, classLoader).update(changelogFile)
-    Seq(changelogFile)
   }
   
   def generateTables(doctypes: Seq[Doctype]): File = {

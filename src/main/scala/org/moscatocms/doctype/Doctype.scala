@@ -1,5 +1,7 @@
 package org.moscatocms.doctype
 
+import org.moscatocms.util.StringUtil._
+
 abstract class FieldType(val name: String)
 
 case object Link extends FieldType("link")
@@ -30,4 +32,6 @@ case class DoctypeDefinition(
 class Doctype(
   val table: String,
   val definition: DoctypeDefinition
-)
+) {
+  def className() = underscoreToCamel(table)
+}

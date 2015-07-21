@@ -2,9 +2,11 @@ package org.moscatocms.sbt
 
 import sbt._
 import Keys._
-import org.moscatocms.doctype.DoctypeGenerator
+import org.moscatocms.doctype.ChangelogGenerator
 import org.moscatocms.liquibase.DbConfig
 import sbt.classpath.ClasspathUtilities
+import org.moscatocms.doctype.CodeGenerator
+import org.moscatocms.doctype.DoctypeParser._
 
 object DoctypePlugin extends AutoPlugin {
   
@@ -34,16 +36,13 @@ object DoctypePlugin extends AutoPlugin {
           moscatoDbPassword.value
         )
         
-        val outDir = (sourceManaged in Compile).value / "moscato"
-        val generator = new DoctypeGenerator(outDir, dbConfig, classLoader)
-        generator.generate(moscatoDoctypeDefinitions.value)
+        val doctypes = moscatoDoctypeDefinitions.value map { parse _ }
         
-        val r = (runner in Compile).value
-        val pkg = "org.moscatocms.model"
-        val props = Seq(slickDriver(moscatoDbDriver.value), moscatoDbDriver.value, moscatoDbUrl.value, outDir.getAbsolutePath, pkg)
-        toError(r.run("slick.codegen.SourceCodeGenerator", classPath.files, props, streams.value.log))
-        val fname = outDir + "/" + pkg.replace(".", "/") + "/Tables.scala"
-        Seq(file(fname))
+        val outDir = (sourceManaged in Compile).value / "moscato"
+        new ChangelogGenerator(outDir, dbConfig, classLoader).generate(doctypes)
+        
+        generateSlickCode((runner in Compile).value, moscatoDbDriver.value, moscatoDbUrl.value, streams.value.log, classPath, outDir) ++
+          new CodeGenerator(outDir).generate(doctypes)
       },
       moscatoDoctypeDefinitions := Nil
     )
@@ -64,4 +63,13 @@ object DoctypePlugin extends AutoPlugin {
     case "org.postgresql.Driver" => "slick.driver.PostgresDriver"
     case _ => sys.error(s"Driver $jdbcDriver not supported yet")
   }
+
+  def generateSlickCode(runner: ScalaRun, dbDriver: String, dbUrl: String, log: Logger, classPath: Classpath, outDir: File) = {
+    val pkg = "org.moscatocms.model"
+    val props = Seq(slickDriver(dbDriver), dbDriver, dbUrl, outDir.getAbsolutePath, pkg)
+    toError(runner.run("slick.codegen.SourceCodeGenerator", classPath.files, props, log))
+    val fname = outDir + "/" + pkg.replace(".", "/") + "/Tables.scala"
+    Seq(file(fname))
+  }
+
 }

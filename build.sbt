@@ -14,3 +14,5 @@ libraryDependencies ++= Seq(
   "io.spray" %%  "spray-json" % "1.3.2",
   "org.liquibase" % "liquibase-core" % "3.4.0"
 )
+
+lazy val root = (project in file(".")).enablePlugins(SbtTwirl)
