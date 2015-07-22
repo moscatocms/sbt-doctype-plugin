@@ -1,9 +1,0 @@
-@(doctype: org.moscatocms.doctype.Doctype)
-
-package org.moscatocms.doctypes
-
-case class @(doctype.table.capitalize) (
-  @for((field, index) <- doctype.definition.fields.zipWithIndex) {
-    @field.name: @field.fieldType @if(index < doctype.definition.fields.size - 1) { , }
-  }
-)

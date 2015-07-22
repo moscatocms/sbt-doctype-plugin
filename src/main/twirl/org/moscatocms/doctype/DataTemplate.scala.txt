@@ -1,0 +1,33 @@
+@(doctype: org.moscatocms.doctype.Doctype, packageName: String)
+
+@import org.moscatocms.doctype.Field
+@import org.moscatocms.doctype.CodeGenerator._
+
+@listFields(code: Field => String) = {
+  @for((field, index) <- doctype.definition.fields.zipWithIndex) {
+    @code(field) @if(index < doctype.definition.fields.size - 1) { , }
+  }
+}
+
+package @(packageName).doctypes
+
+import spray.json._
+
+case class @(doctype.className)Data (
+  @listFields(field => s"${field.name}: ${field.scalaType}")
+)
+
+case class @(doctype.className)DataWithId (
+  id: Long,
+  @listFields(field => s"${field.name}: ${field.scalaType}")
+)
+
+object @(doctype.className)JsonProtocol extends DefaultJsonProtocol {
+
+  implicit val @(doctype.className)DataFormat =
+    jsonFormat@(doctype.definition.fields.size)(@(doctype.className)Data)
+
+  implicit val @(doctype.className)DataWithIdFormat =
+    jsonFormat@(doctype.definition.fields.size + 1)(@(doctype.className)DataWithId)
+}
+

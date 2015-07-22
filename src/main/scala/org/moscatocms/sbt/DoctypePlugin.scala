@@ -24,9 +24,9 @@ object DoctypePlugin extends AutoPlugin {
     // default values for the tasks and settings
     lazy val baseSettings: Seq[Def.Setting[_]] = Seq(
       
-      moscatoGenerateDoctypes := {
+      moscatoGenerateDoctypes in Compile := {
         implicit val log = streams.value.log
-        val classPath = (dependencyClasspath in Runtime).value
+        val classPath = (dependencyClasspath in Compile).value
         val classLoader = ClasspathUtilities.toLoader(classPath map { _.data })
         
         val dbConfig = DbConfig(
@@ -38,38 +38,46 @@ object DoctypePlugin extends AutoPlugin {
         
         val doctypes = moscatoDoctypeDefinitions.value map { parse _ }
         
-        val outDir = (sourceManaged in Compile).value / "moscato"
+        val outDir = (sourceManaged in Compile).value
         new ChangelogGenerator(outDir, dbConfig, classLoader).generate(doctypes)
         
-        generateSlickCode((runner in Compile).value, moscatoDbDriver.value, moscatoDbUrl.value, streams.value.log, classPath, outDir) ++
-          new CodeGenerator(outDir).generate(doctypes)
+        generateSlickCode(
+            (runner in Compile).value,
+            moscatoDbDriver.value,
+            moscatoDbUrl.value,
+            streams.value.log,
+            classPath,
+            outDir,
+            organization.value + ".model") ++
+          new CodeGenerator(outDir, organization.value).generate(doctypes)
       },
       moscatoDoctypeDefinitions := Nil
     )
     
-    sourceGenerators in Compile += moscatoGenerateDoctypes.taskValue
   }
 
   import autoImport._
+
   override def requires = sbt.plugins.JvmPlugin
 
   // This plugin is automatically enabled for projects which are JvmPlugin.
   override def trigger = allRequirements
 
   // a group of settings that are automatically added to projects.
-  override val projectSettings = baseSettings
+  override lazy val projectSettings = Seq(
+    sourceGenerators in Compile += (moscatoGenerateDoctypes in Compile).taskValue
+  ) ++ baseSettings
 
   def slickDriver(jdbcDriver: String) = jdbcDriver match {
     case "org.postgresql.Driver" => "slick.driver.PostgresDriver"
     case _ => sys.error(s"Driver $jdbcDriver not supported yet")
   }
 
-  def generateSlickCode(runner: ScalaRun, dbDriver: String, dbUrl: String, log: Logger, classPath: Classpath, outDir: File) = {
-    val pkg = "org.moscatocms.model"
+  def generateSlickCode(runner: ScalaRun, dbDriver: String, dbUrl: String, log: Logger, classPath: Classpath, outDir: File, pkg: String) = {
     val props = Seq(slickDriver(dbDriver), dbDriver, dbUrl, outDir.getAbsolutePath, pkg)
     toError(runner.run("slick.codegen.SourceCodeGenerator", classPath.files, props, log))
-    val fname = outDir + "/" + pkg.replace(".", "/") + "/Tables.scala"
-    Seq(file(fname))
+    val f = outDir / pkg.replace(".", "/") / "Tables.scala"
+    Seq(file(f.getPath))
   }
 
 }

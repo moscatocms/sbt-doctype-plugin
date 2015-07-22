@@ -1,0 +1,46 @@
+@(doctype: org.moscatocms.doctype.Doctype, packageName: String)
+
+@import org.moscatocms.doctype.Field
+@import org.moscatocms.doctype.CodeGenerator._
+
+@listFields(code: Field => String) = {
+  @for((field, index) <- doctype.definition.fields.zipWithIndex) {
+    @code(field) @if(index < doctype.definition.fields.size - 1) { , }
+  }
+}
+
+package @(packageName).doctypes
+
+import slick.driver.PostgresDriver.api._
+import org.moscatocms.db.Db._
+import org.moscatocms.model.Tables._
+import org.moscatocms.api.UserData
+import scala.concurrent.ExecutionContext
+
+object @(doctype.className)s {
+  
+  def find(id: Long) = {
+    db.run(@(doctype.className).filter(_.id === id).result.head)
+  }
+  
+  def list() = {
+    db.run(@(doctype.className).map(record => record).result)
+  }
+
+  def add(data: @(doctype.className)Data) = {
+    val query = @(doctype.className).map(record =>
+      (@listFields(field => s"record.${field.name}"))
+    ) returning @(doctype.className) +=
+        (@listFields(field => s"data.${field.name}"))
+    db.run(query)
+  }
+
+  def update(id: Long, data: @(doctype.className)Data) = {
+    val query = (for {
+      record <- @(doctype.className) if record.id === id
+    } yield {
+      (@listFields(field => s"record.${field.name}"))
+    }).update((@listFields(field => s"data.${field.name}")))
+    db.run(query)
+  }
+}
