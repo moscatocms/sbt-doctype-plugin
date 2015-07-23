@@ -12,7 +12,9 @@ scalacOptions += "-deprecation"
 
 libraryDependencies ++= Seq(
   "io.spray" %%  "spray-json" % "1.3.2",
-  "org.liquibase" % "liquibase-core" % "3.4.0"
+  "org.liquibase" % "liquibase-core" % "3.4.0",
+  "org.reflections" % "reflections" % "0.9.10",
+  "com.h2database" % "h2" % "1.4.187"
 )
 
 lazy val root = (project in file(".")).enablePlugins(SbtTwirl)

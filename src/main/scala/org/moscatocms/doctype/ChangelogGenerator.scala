@@ -5,28 +5,18 @@ import scala.xml.{Node, XML}
 import org.moscatocms.liquibase._
 
 class ChangelogGenerator(
-  outputDir: File,
-  dbConf: DbConfig,
-  classLoader: ClassLoader
+  outputDir: File
 ) {
   
-  def generate(doctypes: Seq[Doctype])(implicit log: Logger) {
-    log.info(s"Generating doctypes.")
-    outputDir.mkdirs()
-    val changelogFile = generateTables(doctypes)
-    new LiquibaseRunner(dbConf, classLoader).update(changelogFile)
-  }
-  
-  def generateTables(doctypes: Seq[Doctype]): File = {
-    val liquibaseFile = outputDir / "changelog.xml"
-    doctypes foreach { doctype =>
-      writeChangelog(outputDir / (doctype.table + ".xml"), getChangelog(doctype))
-    }
-    writeChangelog(liquibaseFile, getChangelog(doctypes))
-    liquibaseFile
+  def generate(doctype: Doctype)(implicit log: Logger): File = {
+    log.info(s"Generating database schema for doctype ${doctype.table}")
+    val changelogFile = outputDir / (doctype.table + ".xml")
+    writeChangelog(changelogFile, getChangelog(doctype))
+    changelogFile
   }
   
   def writeChangelog(file: File, changeSets: Seq[Node]) {
+    file.getParentFile.mkdirs()
     XML.save(
       filename = file.getAbsolutePath,
       node = <databaseChangeLog
@@ -41,24 +31,22 @@ class ChangelogGenerator(
       xmlDecl = true)
   }
   
-  def getChangelog(doctypes: Seq[Doctype]): Seq[Node] = {
-    <include file="org/moscatocms/migrations/moscato-changelog.xml"/> ++
-    { doctypes map { doctype =>
-      <include file={doctype.table + ".xml"} relativeToChangelogFile="true"/>
-    }}
-  }
-  
   def getChangelog(doctype: Doctype): Seq[Node] = {
     val sequence = s"seq__${doctype.table}__id"
     <changeSet id={s"doctype__${doctype.table}"} author="moscato">
+<!--
       <createSequence sequenceName={sequence} startValue="1" incrementBy="1"/>
+-->
       <createTable tableName={doctype.table}>
+<!--
         <column name="id" type="bigint" defaultValue={s"nextval('$sequence')"}>
+-->
+        <column name="id" type="bigint" autoIncrement="true">
           <constraints nullable="false" primaryKey="true"/>
         </column>
         { doctype.definition.fields map { field =>
         <column name={field.name} type={getColumnType(field.fieldType)}>
-          { if (field.isRequired) {
+          { if (field.required) {
             <constraints nullable="false"/>
           }}
         </column>
@@ -68,8 +56,22 @@ class ChangelogGenerator(
   }
 
   def getColumnType(fieldType: FieldType) = fieldType match {
-    case Link => "text"
-    case Html => "text"
+    case Link => "VARCHAR"
+    case Html => "VARCHAR"
+  }
+  
+  def generateCompleteChangelog(changelogPaths: Seq[String])(implicit log: Logger): File = {
+    //val changelogs = changelogPaths map { _.split("/").last } mkString(", ")
+    val changelogs = changelogPaths.mkString("\n")
+    log.info(s"Generating database tables for changelogs (${changelogs})")
+    val liquibaseFile = outputDir / "changelog.xml"
+    writeChangelog(liquibaseFile, getCompleteChangelog(changelogPaths))
+    liquibaseFile
+  }
+  
+  def getCompleteChangelog(changelogPaths: Seq[String]): Seq[Node] = {
+    <include file="org/moscatocms/migrations/moscato-changelog.xml"/> ++
+    { changelogPaths map { path => <include file={path}/> }}
   }
   
 }

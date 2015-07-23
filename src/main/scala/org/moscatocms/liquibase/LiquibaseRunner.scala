@@ -40,8 +40,8 @@ class LiquibaseRunner(val conf: DbConfig, val classLoader: ClassLoader) {
       //new FileSystemResourceAccessor,
       classLoader,
       conf.url,
-      conf.username,
-      conf.password,
+      conf.username.orNull,
+      conf.password.orNull,
       conf.driver,
       null.asInstanceOf[String], // defaultCatalog
       null.asInstanceOf[String], // defaultSchema
@@ -53,7 +53,7 @@ class LiquibaseRunner(val conf: DbConfig, val classLoader: ClassLoader) {
       null, // driverPropertiesFile
       null, // propertyProviderClass
       null.asInstanceOf[String], // liquibaseChangelogCatalog
-      null.asInstanceOf[String] // liquibaseChangelogSchema
+      "liquibase" // liquibaseChangelogSchema
     )
   }
 }

@@ -14,7 +14,18 @@ object DoctypeJsonProtocol extends DefaultJsonProtocol {
     def write(fieldType: FieldType) = ???
   }
   
-  implicit val fieldJsonFormat = jsonFormat3(Field)
+  implicit object FieldJsonFormat extends JsonFormat[Field] {
+    def write(f: Field) = ???
+
+    def read(value: JsValue) = value.asJsObject.getFields("name", "type", "required") match {
+      case Seq(JsString(name), fieldType, JsBoolean(required)) =>
+        Field(name, FieldTypeJsonFormat.read(fieldType), required)
+      case Seq(JsString(name), fieldType) =>
+        Field(name, FieldTypeJsonFormat.read(fieldType), false)
+      case _ => deserializationError("Field object expected")
+    }
+  }
+
   implicit val doctypeDefinitionJsonFormat = jsonFormat2(DoctypeDefinition)
   
 }

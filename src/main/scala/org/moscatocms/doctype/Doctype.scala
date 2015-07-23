@@ -17,10 +17,8 @@ object FieldType extends Enumeration {
 case class Field(
   val name: String,
   val fieldType: FieldType,
-  val required: Option[Boolean]
-) {
-  def isRequired = required.getOrElse(false)
-}
+  val required: Boolean
+)
 
 case class DoctypeDefinition(
   val name: String,
