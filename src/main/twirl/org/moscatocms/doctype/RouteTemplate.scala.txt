@@ -29,7 +29,7 @@ object @(doctype.className)Route extends MoscatoRoute {
   def toDataWithId(row: @(doctype.className)Row) =
     @(doctype.className)DataWithId(row.id, @listFields(field => s"row.${field.name}"))
 
-  Routes += pathPrefix("@(doctype.table)") {
+  def route = pathPrefix("@(doctype.table)") {
     get {
       complete(@(doctype.className)s.list.map(_.map(toDataWithId _)))
     } ~

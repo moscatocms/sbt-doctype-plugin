@@ -18,8 +18,9 @@ import org.reflections.util.ClasspathHelper
 import java.util.Arrays
 import org.moscatocms.liquibase.LiquibaseRunner
 import scala.collection.JavaConversions._
+import org.moscatocms.doctype.ChangelogUtils
 
-object DoctypePlugin extends AutoPlugin {
+object MoscatoDoctypePlugin extends AutoPlugin {
   
   // by defining autoImport, the settings are automatically imported into user's `*.sbt`
   object autoImport {
@@ -27,13 +28,7 @@ object DoctypePlugin extends AutoPlugin {
     val moscatoParseDoctypes = taskKey[Seq[Doctype]]("Parse Moscato doctypes.")
     val moscatoGenerateDoctypes = taskKey[Seq[File]]("Generate Moscato doctype resources.")
     val moscatoGenerateChangelogs = taskKey[Seq[File]]("Generate Moscato doctype changelogs.")
-    val moscatoGenerateSchema = taskKey[Unit]("Generate Moscato database schema.")
 
-    val moscatoDbUrl = SettingKey[String]("moscato-db-url", "The DB URL.")
-    val moscatoDbUsername = SettingKey[String]("moscato-db-username", "The DB username.")
-    val moscatoDbPassword = SettingKey[String]("moscato-db-password", "The DB password.")
-    val moscatoDbDriver = SettingKey[String]("moscato-db-driver", "The DB driver class name.")
-    
     val moscatoChangelogDir = SettingKey[File]("moscato-changelog-dir", "The directory to write changelogs to.")
     
     // default values for the tasks and settings
@@ -77,34 +72,6 @@ object DoctypePlugin extends AutoPlugin {
             organization.value + ".model") ++
           new CodeGenerator(srcOutDir, organization.value).generate(doctypes)
       },
-      
-      moscatoGenerateSchema in Compile := {
-        implicit val log = streams.value.log
-        val dbConfig = DbConfig(
-            moscatoDbUrl.value,
-            moscatoDbDriver.value,
-            Some(moscatoDbUsername.value),
-            Some(moscatoDbPassword.value)
-          )
-
-        val classPath = (dependencyClasspath in Compile).value
-        val classLoader = ClasspathUtilities.toLoader(classPath map { _.data })
-        val changelogGenerator = new ChangelogGenerator(moscatoChangelogDir.value)
-        
-        val configBuilder = new ConfigurationBuilder().
-            //setUrls(classPath map { _.data.toURI.toURL }).
-            setUrls(ClasspathHelper.forPackage("org.moscatocms.changelog", classLoader)).
-            setScanners(new ResourcesScanner)
-        val reflections = new Reflections(configBuilder)
-        val changelogPaths = reflections.getResources(Pattern.compile(".*\\.xml")).asScala.toSeq
-        val changelog = changelogGenerator.generateCompleteChangelog(changelogPaths)
-        new LiquibaseRunner(dbConfig, classLoader).update(changelog)
-      },
-      
-      moscatoDbUrl := "",
-      moscatoDbDriver := "",
-      moscatoDbUsername := "",
-      moscatoDbPassword := "",
       
       moscatoChangelogDir := (resourceManaged in Compile).value / organization.value.replace(".", "/") / "changelog"
     )

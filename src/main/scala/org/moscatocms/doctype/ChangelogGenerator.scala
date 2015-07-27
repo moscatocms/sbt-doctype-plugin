@@ -8,27 +8,13 @@ class ChangelogGenerator(
   outputDir: File
 ) {
   
+  import ChangelogUtils._
+  
   def generate(doctype: Doctype)(implicit log: Logger): File = {
     log.info(s"Generating database schema for doctype ${doctype.table}")
     val changelogFile = outputDir / (doctype.table + ".xml")
     writeChangelog(changelogFile, getChangelog(doctype))
     changelogFile
-  }
-  
-  def writeChangelog(file: File, changeSets: Seq[Node]) {
-    file.getParentFile.mkdirs()
-    XML.save(
-      filename = file.getAbsolutePath,
-      node = <databaseChangeLog
-        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
-        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xmlns:ext="http://www.liquibase.org/xml/ns/dbchangelog-ext"
-        xsi:schemaLocation="
-            http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.1.xsd
-            http://www.liquibase.org/xml/ns/dbchangelog-ext http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-ext.xsd">
-        {changeSets}
-      </databaseChangeLog>,
-      xmlDecl = true)
   }
   
   def getChangelog(doctype: Doctype): Seq[Node] = {
@@ -58,20 +44,6 @@ class ChangelogGenerator(
   def getColumnType(fieldType: FieldType) = fieldType match {
     case Link => "VARCHAR"
     case Html => "VARCHAR"
-  }
-  
-  def generateCompleteChangelog(changelogPaths: Seq[String])(implicit log: Logger): File = {
-    //val changelogs = changelogPaths map { _.split("/").last } mkString(", ")
-    val changelogs = changelogPaths.mkString("\n")
-    log.info(s"Generating database tables for changelogs (${changelogs})")
-    val liquibaseFile = outputDir / "changelog.xml"
-    writeChangelog(liquibaseFile, getCompleteChangelog(changelogPaths))
-    liquibaseFile
-  }
-  
-  def getCompleteChangelog(changelogPaths: Seq[String]): Seq[Node] = {
-    <include file="org/moscatocms/migrations/moscato-changelog.xml"/> ++
-    { changelogPaths map { path => <include file={path}/> }}
   }
   
 }
